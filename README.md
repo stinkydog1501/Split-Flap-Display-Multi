@@ -21,6 +21,7 @@ Firmware for the modular Split Flap Display created by [Morgan Manly](https://gi
     - Configure WiFi, Timezone, and hardware settings
 - MQTT Support
 - OTA Firmware / Filesystem updating
+- Scrolling text for messages longer than the display width, with configurable delay between chunks and configurable repeat count
 
 ## Supported boards
 

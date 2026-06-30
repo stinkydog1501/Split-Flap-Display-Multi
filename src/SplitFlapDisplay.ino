@@ -40,6 +40,9 @@ JsonSettings settings = JsonSettings("config", {
     {"stepsPerRot", JsonSetting(2048)},
     {"maxVel", JsonSetting(15.0f)},
     {"charset", JsonSetting(37)},
+    // Scroll Settings (only applies to messages longer than numModules)
+    {"scrollDelayMs", JsonSetting(1500)},
+    {"scrollRepeatCount", JsonSetting(2)},
     // Operational States
     {"mode", JsonSetting(0)}
 });
@@ -117,7 +120,11 @@ void loop() {
 void singleInputMode() {
     String userInput = webServer.getInputString();
     if (userInput != webServer.getWrittenString()) {
-        display.writeString(userInput, MAX_RPM, webServer.getCentering());
+        display.writeString(
+            userInput, MAX_RPM, webServer.getCentering(),
+            settings.getInt("scrollDelayMs"),
+            settings.getInt("scrollRepeatCount")
+        );
         webServer.setWrittenString(userInput);
     }
 }
@@ -128,7 +135,11 @@ void multiInputMode() {
         String userInput = webServer.getMultiInputString();
         String currWord = extractFromCSV(userInput, webServer.getMultiWordCurrentIndex());
         if (currWord != webServer.getWrittenString()) {
-            display.writeString(currWord, MAX_RPM, webServer.getCentering());
+            display.writeString(
+                currWord, MAX_RPM, webServer.getCentering(),
+                settings.getInt("scrollDelayMs"),
+                settings.getInt("scrollRepeatCount")
+            );
             webServer.setWrittenString(currWord);
         }
         webServer.setLastSwitchMultiTime(millis());

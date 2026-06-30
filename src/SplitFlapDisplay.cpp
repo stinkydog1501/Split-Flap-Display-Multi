@@ -161,7 +161,8 @@ void SplitFlapDisplay::writeChar(char inputChar, float speed) {
 }
 
 void SplitFlapDisplay::writeString(
-    String inputString, float speed, bool centering, unsigned long scrollDelayMs
+    String inputString, float speed, bool centering, unsigned long scrollDelayMs,
+    int scrollRepeatCount
 ) {
     // Short path: fits in one frame — behave exactly as before.
     if (inputString.length() <= numModules) {
@@ -172,20 +173,32 @@ void SplitFlapDisplay::writeString(
         return;
     }
 
-    // Long path: split into word-respecting chunks and display sequentially.
+    // Long path: split into word-respecting chunks and display sequentially,
+    // repeating the full chunk sequence scrollRepeatCount times end-to-end.
+    // Clamp the count to a sane range so a misconfigured value (0, negative,
+    // or absurdly large) can't lock up the display loop.
+    int repeats = constrain(
+        scrollRepeatCount, MIN_SCROLL_REPEAT_COUNT, MAX_SCROLL_REPEAT_COUNT
+    );
+
     String chunks[MAX_MODULES * 4]; // generous upper bound for very long input
     int chunkCount = 0;
     splitIntoChunks(inputString, chunks, MAX_MODULES * 4, chunkCount);
 
     Serial.printf(
-        "[scroll] input=%d chars, numModules=%d, chunks=%d\n",
-        inputString.length(), numModules, chunkCount
+        "[scroll] input=%d chars, numModules=%d, chunks=%d, repeats=%d\n",
+        inputString.length(), numModules, chunkCount, repeats
     );
 
-    for (int i = 0; i < chunkCount; i++) {
-        displayChunk(chunks[i], speed, centering);
-        if (i < chunkCount - 1) {
-            delay(scrollDelayMs);
+    for (int r = 0; r < repeats; r++) {
+        for (int i = 0; i < chunkCount; i++) {
+            displayChunk(chunks[i], speed, centering);
+            // Pause between chunks within a pass. We also pause between the
+            // last chunk of pass r and the first chunk of pass r+1 so the
+            // reader gets a clear "wrap" — same delay as intra-pass is fine.
+            if (i < chunkCount - 1 || r < repeats - 1) {
+                delay(scrollDelayMs);
+            }
         }
     }
 
