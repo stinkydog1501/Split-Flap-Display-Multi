@@ -177,21 +177,40 @@ void SplitFlapDisplay::writeString(
     int chunkCount = 0;
     splitIntoChunks(inputString, chunks, MAX_MODULES * 4, chunkCount);
 
+    // scrollRepeatCount lets long messages play more than once so the user
+    // can catch the start they missed. Read fresh per-call (settings can
+    // change at runtime via /settings). Clamp to a sane range so a typo in
+    // the JSON config can't lock the display scrolling forever.
+    int repeatCount = settings.getInt("scrollRepeatCount");
+    if (repeatCount < 1) {
+        repeatCount = 2;  // treat "0"/"-1" as "use firmware default" so a bad
+                          // /settings write doesn't degrade to single-pass
+                          // silently. (User intent: the device should always
+                          // scroll long messages at least once.)
+    }
+    if (repeatCount > MAX_SCROLL_REPEATS) {
+        repeatCount = MAX_SCROLL_REPEATS;
+    }
+
     Serial.printf(
-        "[scroll] input=%d chars, numModules=%d, chunks=%d\n",
-        inputString.length(), numModules, chunkCount
+        "[scroll] input=%d chars, numModules=%d, chunks=%d, repeats=%d\n",
+        inputString.length(), numModules, chunkCount, repeatCount
     );
 
-    for (int i = 0; i < chunkCount; i++) {
-        displayChunk(chunks[i], speed, centering);
-        if (i < chunkCount - 1) {
-            delay(scrollDelayMs);
+    for (int rep = 0; rep < repeatCount; rep++) {
+        for (int i = 0; i < chunkCount; i++) {
+            displayChunk(chunks[i], speed, centering);
+            if (i < chunkCount - 1) {
+                delay(scrollDelayMs);
+            }
         }
     }
 
     if (mqtt && mqtt->isConnected()) {
         // Publish the original input so consumers see the full message, not
-        // just the final chunk on the display.
+        // just the final chunk on the display. Publish once at the end of
+        // all repeats — not per cycle — so HA's state sensor doesn't flip
+        // repeatedly during a multi-cycle scroll.
         mqtt->publishState(inputString);
     }
 }

@@ -40,6 +40,8 @@ JsonSettings settings = JsonSettings("config", {
     {"stepsPerRot", JsonSetting(2048)},
     {"maxVel", JsonSetting(15.0f)},
     {"charset", JsonSetting(37)},
+    // Scroll Settings
+    {"scrollRepeatCount", JsonSetting(2)},
     // Operational States
     {"mode", JsonSetting(0)}
 });

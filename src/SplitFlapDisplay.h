@@ -8,6 +8,7 @@
 #define MAX_MODULES 8 // for memory allocation, update if more modules
 #define MAX_RPM 15.0f
 #define DEFAULT_SCROLL_DELAY_MS 1500 // pause between chunks when scrolling
+#define MAX_SCROLL_REPEATS 10       // upper bound on the scrollRepeatCount setting (anti-runaway)
 
 class SplitFlapMqtt;
 
