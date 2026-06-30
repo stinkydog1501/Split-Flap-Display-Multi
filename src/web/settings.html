@@ -659,6 +659,57 @@
                     </div>
                 </div>
 
+                <h3 class="block text-left text-lg mt-6 mb-2 font-semibold">
+                    Scrolling (long messages)
+                </h3>
+                <div class="grid grid-cols-2 gap-2 w-full">
+                    <div>
+                        <label
+                            for="scrollDelayMs"
+                            class="block text-left text-lg mt-4"
+                        >
+                            Delay Between Chunks (ms)
+                        </label>
+                        <input
+                            class="w-full p-3 mt-2 text-lg border border-gray-600 rounded-md text-center bg-neutral-700 text-gray-100"
+                            type="number"
+                            id="scrollDelayMs"
+                            min="0"
+                            x-model="settings.scrollDelayMs"
+                            placeholder="1500"
+                        />
+                        <div
+                            class="w-full p-3 mt-2 text-sm text-white bg-red-700 rounded-md"
+                            x-cloak
+                            x-show="errors.key === 'scrollDelayMs'"
+                            x-text="errors.message"
+                        ></div>
+                    </div>
+                    <div>
+                        <label
+                            for="scrollRepeatCount"
+                            class="block text-left text-lg mt-4"
+                        >
+                            Repeat Count
+                        </label>
+                        <input
+                            class="w-full p-3 mt-2 text-lg border border-gray-600 rounded-md text-center bg-neutral-700 text-gray-100"
+                            type="number"
+                            id="scrollRepeatCount"
+                            min="1"
+                            max="99"
+                            x-model="settings.scrollRepeatCount"
+                            placeholder="2"
+                        />
+                        <div
+                            class="w-full p-3 mt-2 text-sm text-white bg-red-700 rounded-md"
+                            x-cloak
+                            x-show="errors.key === 'scrollRepeatCount'"
+                            x-text="errors.message"
+                        ></div>
+                    </div>
+                </div>
+
                 <button
                     class="w-full p-3 mt-4 text-lg font-semibold text-white bg-red-600 rounded-md hover:bg-red-500 transition-colors"
                     x-on:click.prevent="reset()"
