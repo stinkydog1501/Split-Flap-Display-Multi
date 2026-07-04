@@ -22,6 +22,7 @@ Firmware for the modular Split Flap Display created by [Morgan Manly](https://gi
 - MQTT Support
 - OTA Firmware / Filesystem updating
 - Scrolling text for messages longer than the display width, with configurable delay between chunks and configurable repeat count
+- Multi-display master mode using ESP-NOW to coordinate up to 6 display groups, with up to 8 modules per group
 
 ## Supported boards
 
@@ -31,6 +32,26 @@ Firmware for the modular Split Flap Display created by [Morgan Manly](https://gi
 | `esp32_s3`           | ESP32-S3FH4R2 | Waveshare ESP32-S3-Zero<sup>\*</sup><br>ESP32-S3 Super Mini<sup>\*</sup> |
 
 <sub>\* Requires manually resetting the board into firmware upload mode by holding BOOT, pressing & releasing RESET, then releasing BOOT prior to upload. After uploading is successful, either press & release RESET or power cycle the board to put it in normal operation mode.</sub>
+
+### ESP32-C3 partition layout
+
+The default `esp32_c3` environment uses `no_ota.csv`. This gives the 4MB ESP32-C3 boards a larger single app partition for the current firmware and web feature set. Without this layout, the firmware can outgrow the default OTA app slot and the board may repeatedly reset before `setup()` runs.
+
+Because this layout changes the flash partition table, erase the board before uploading firmware built with it:
+
+```sh
+pio run -t erase -e esp32_c3
+pio run -t upload -e esp32_c3
+pio run -t uploadfs -e esp32_c3
+```
+
+After flashing, monitor the C3 environment at `460800` baud:
+
+```sh
+pio device monitor -e esp32_c3 -b 460800
+```
+
+The erase step clears saved settings, Wi-Fi credentials, NVS data, and the filesystem. Upload both firmware and filesystem afterward.
 
 ## Setup Instructions
 
@@ -51,11 +72,65 @@ Firmware for the modular Split Flap Display created by [Morgan Manly](https://gi
 - Compiles and uploads the esp32 firmware ( `npm run pio:firmware` or `pio run -t upload -e <environment>` )
 - Compiles and uploads the littlefs filesystem ( `npm run pio:filesystem` or `pio run -t uploadfs -e <environment>` )
 
+If you are switching an ESP32-C3 board from an older build or partition layout, use the erase/upload sequence in [ESP32-C3 partition layout](#esp32-c3-partition-layout) instead of only running `npm run build`.
+
 1. Enjoy!
+
+## Multi-Display Master Mode
+
+The firmware can coordinate multiple split-flap display groups from one master controller. This is useful when a single hardware group cannot exceed 8 modules, but the full message needs to span more modules.
+
+Limits:
+
+- Up to 8 modules per group
+- Up to 6 groups total
+- Up to 48 modules total when all 6 groups have 8 modules
+- Group 1 is always the local group connected to the master controller
+- Groups 2-6 are remote groups controlled over ESP-NOW
+
+All controllers run the same firmware. The master is simply the controller where `Number of Groups` is set above `1`.
+
+### How messages are split
+
+When custom text is submitted from the master web page, the text is split from left to right using each group's configured module count.
+
+For example, with these group sizes:
+
+| Group | Modules | Displayed segment |
+| ----- | ------- | ----------------- |
+| 1     | 8       | Characters 1-8    |
+| 2     | 6       | Characters 9-14   |
+| 3     | 8       | Characters 15-22  |
+
+Group 1 displays its segment locally on the master controller. The master sends each remaining segment to the configured remote group MAC address over ESP-NOW. Short segments are padded with spaces. Characters beyond the total configured module count are not sent.
+
+### Setup
+
+1. Flash the firmware and filesystem to every group controller.
+1. Configure Wi-Fi on every controller. Using the same Wi-Fi network is recommended so the controllers share a radio channel and each web page remains reachable.
+1. Open the serial monitor for each remote controller and note the MAC address printed at startup:
+
+    - `[esp-now] initialized on AA:BB:CC:DD:EE:FF`
+
+1. On the master controller, open `Settings`.
+1. In `Hardware Settings`, set `Number of Modules` to the number of modules physically connected to the master group.
+1. In `Multi-Display Master`, set `Number of Groups`.
+1. For each group:
+
+    - Set the module count for that group.
+    - Leave Group 1 as the local display.
+    - Enter the ESP-NOW MAC address for each remote group.
+
+1. Save settings.
+1. Return to the main page, select `Custom Text`, enter the full message, and click `Update Display`.
+
+Remote groups automatically switch into ESP-NOW remote display mode when they receive a message from the master. They do not need their own text entry once registered with the master.
 
 ### Using OTA to update the firmware
 
-On the settings page set an OTA password to enable OTA updatable firmware. Use this same password for your `auth` flag in `platformio.ini`, and then use a device environment with `*_ota` appended (ie `esp32_s3_ota`) to upload a new firmware and/or filesystem
+On the settings page set an OTA password to enable OTA updatable firmware. Use this same password for your `auth` flag in `platformio.ini`, and then use a device environment with `*_ota` appended (ie `esp32_s3_ota`) to upload a new firmware and/or filesystem.
+
+Note: the default `esp32_c3` environment uses a no-OTA partition layout to fit the current firmware on 4MB C3 boards. OTA updates need two app slots, so they are not supported by that default C3 layout unless the firmware/filesystem size is reduced or a larger-flash board/layout is used.
 
 ## Contributing
 

@@ -68,6 +68,9 @@ class SplitFlapWebServer {
     JsonSettings &settings;
 
     String decodeURIComponent(String encodedString);
+    bool validateMasterSettings(JsonVariant &json, JsonDocument &response);
+    bool validateMacAddress(String macString);
+    String getCsvToken(const String &csv, int index);
     void setInputString(String input) { inputString = input; }
     void setMultiInputString(String input) { multiInputString = input; }
 

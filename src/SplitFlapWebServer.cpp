@@ -2,6 +2,7 @@
 
 #include <ArduinoJson.h>
 #include <AsyncJson.h>
+#include <ctype.h>
 
 #define AP_SSID "Split Flap Display"
 
@@ -329,7 +330,11 @@ void SplitFlapWebServer::startWebServer() {
     }
 
     server.on("/settings", HTTP_GET, [this](AsyncWebServerRequest *request) {
-        request->send(200, "application/json", settings.toJson().as<String>());
+        JsonDocument currentSettings = settings.toJson();
+        JsonDocument response;
+        response["settings"] = currentSettings.as<JsonObject>();
+        response["localMac"] = WiFi.macAddress();
+        request->send(200, "application/json", response.as<String>());
     });
 
     server.on("/settings/reset", HTTP_POST, [this](AsyncWebServerRequest *request) {
@@ -353,7 +358,6 @@ void SplitFlapWebServer::startWebServer() {
 
         Serial.println("Received settings update request");
         Serial.println(json.as<String>());
-
         bool rebootRequired = false;
         bool reconnect = false;
         JsonDocument response;
@@ -387,6 +391,10 @@ void SplitFlapWebServer::startWebServer() {
             (json["mqtt_pass"].is<String>() && json["mqtt_pass"].as<String>() != settings.getString("mqtt_pass"))) {
             response["message"] = "Mqtt settings have changed, reconnecting...";
             reconnect = true;
+        }
+
+        if (! validateMasterSettings(json, response)) {
+            return request->send(400, "application/json", response.as<String>());
         }
 
         if (! settings.fromJson(json)) {
@@ -522,4 +530,121 @@ String SplitFlapWebServer::decodeURIComponent(String encodedString) {
     decodedString.replace("%7E", "~");  // tilde
 
     return decodedString;
+}
+
+bool SplitFlapWebServer::validateMasterSettings(JsonVariant &json, JsonDocument &response) {
+    const int maxDisplayGroups = 6;
+    const int maxModulesPerGroup = 8;
+
+    int groupCount = settings.getInt("masterGroupCount");
+    if (! json["masterGroupCount"].isNull()) {
+        if (! json["masterGroupCount"].is<int>()) {
+            response["message"] = "Master group count must be a number";
+            response["type"] = "error";
+            response["errors"]["key"] = "masterGroupCount";
+            response["errors"]["message"] = "Enter a value from 1 to 6";
+            return false;
+        }
+        groupCount = json["masterGroupCount"].as<int>();
+    }
+
+    if (groupCount < 1 || groupCount > maxDisplayGroups) {
+        response["message"] = "Master group count must be between 1 and 6";
+        response["type"] = "error";
+        response["errors"]["key"] = "masterGroupCount";
+        response["errors"]["message"] = "Enter a value from 1 to 6";
+        return false;
+    }
+
+    String moduleCounts = settings.getString("masterGroupModuleCounts");
+    if (! json["masterGroupModuleCounts"].isNull()) {
+        if (! json["masterGroupModuleCounts"].is<String>()) {
+            response["message"] = "Group module counts must be comma-separated numbers";
+            response["type"] = "error";
+            response["errors"]["key"] = "masterGroupModuleCounts";
+            response["errors"]["message"] = "Use one number per group";
+            return false;
+        }
+        moduleCounts = json["masterGroupModuleCounts"].as<String>();
+    }
+
+    for (int i = 0; i < groupCount; i++) {
+        String token = getCsvToken(moduleCounts, i);
+        if (token.length() == 0) {
+            response["message"] = "Each active group needs a module count";
+            response["type"] = "error";
+            response["errors"]["key"] = "masterGroupModuleCounts";
+            response["errors"]["message"] = "Enter 1 to 8 modules for each active group";
+            return false;
+        }
+
+        int value = token.toInt();
+        if (value < 1 || value > maxModulesPerGroup) {
+            response["message"] = "Each group can have 1 to 8 modules";
+            response["type"] = "error";
+            response["errors"]["key"] = "masterGroupModuleCounts";
+            response["errors"]["message"] = "Hardware limit is 8 modules per group";
+            return false;
+        }
+    }
+
+    String macs = settings.getString("masterGroupMacs");
+    if (! json["masterGroupMacs"].isNull()) {
+        if (! json["masterGroupMacs"].is<String>()) {
+            response["message"] = "Group MAC addresses must be text";
+            response["type"] = "error";
+            response["errors"]["key"] = "masterGroupMacs";
+            response["errors"]["message"] = "Use MAC addresses like AA:BB:CC:DD:EE:FF";
+            return false;
+        }
+        macs = json["masterGroupMacs"].as<String>();
+    }
+
+    for (int i = 1; i < groupCount; i++) {
+        String mac = getCsvToken(macs, i);
+        if (! validateMacAddress(mac)) {
+            response["message"] = "Each remote group needs a valid MAC address";
+            response["type"] = "error";
+            response["errors"]["key"] = "masterGroupMacs";
+            response["errors"]["message"] = "Use MAC addresses like AA:BB:CC:DD:EE:FF";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool SplitFlapWebServer::validateMacAddress(String macString) {
+    macString.trim();
+    int digitCount = 0;
+
+    for (int i = 0; i < (int) macString.length(); i++) {
+        char c = macString[i];
+        if (isxdigit((unsigned char) c)) {
+            digitCount++;
+        } else if (c != ':' && c != '-' && c != ' ') {
+            return false;
+        }
+    }
+
+    return digitCount == 12;
+}
+
+String SplitFlapWebServer::getCsvToken(const String &csv, int index) {
+    int tokenStart = 0;
+    int tokenIndex = 0;
+
+    for (int i = 0; i <= (int) csv.length(); i++) {
+        if (i == (int) csv.length() || csv[i] == ',') {
+            if (tokenIndex == index) {
+                String token = csv.substring(tokenStart, i);
+                token.trim();
+                return token;
+            }
+            tokenStart = i + 1;
+            tokenIndex++;
+        }
+    }
+
+    return "";
 }

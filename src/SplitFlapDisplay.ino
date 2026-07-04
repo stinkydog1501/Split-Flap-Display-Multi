@@ -6,6 +6,7 @@
 // Enjoy :)
 #include "JsonSettings.h"
 #include "SplitFlapDisplay.h"
+#include "SplitFlapEspNow.h"
 #include "SplitFlapMqtt.h"
 #include "SplitFlapWebServer.h"
 
@@ -43,6 +44,10 @@ JsonSettings settings = JsonSettings("config", {
     // Scroll Settings (only applies to messages longer than numModules)
     {"scrollDelayMs", JsonSetting(1500)},
     {"scrollRepeatCount", JsonSetting(2)},
+    // Multi-display master settings
+    {"masterGroupCount", JsonSetting(1)},
+    {"masterGroupModuleCounts", JsonSetting({8, 8, 8, 8, 8, 8})},
+    {"masterGroupMacs", JsonSetting(",,,,,")},
     // Operational States
     {"mode", JsonSetting(0)}
 });
@@ -50,51 +55,91 @@ JsonSettings settings = JsonSettings("config", {
 
 WiFiClient wifiClient;
 SplitFlapDisplay display(settings);
+SplitFlapEspNow *splitflapEspNow = nullptr;
 SplitFlapWebServer webServer(settings);
 SplitFlapMqtt splitflapMqtt(settings, wifiClient);
+
+bool isMultiDisplayMasterEnabled() {
+    return settings.getInt("masterGroupCount") > 1;
+}
+
+SplitFlapEspNow *getSplitFlapEspNow() {
+    if (! splitflapEspNow) {
+        splitflapEspNow = new SplitFlapEspNow(settings, display);
+    }
+    return splitflapEspNow;
+}
 
 void setup() {
     // put your setup code here, to run once:
     Serial.begin(SERIAL_SPEED);
+    Serial.println("[boot] serial ready");
+    Serial.flush();
 
 #ifdef STARTUP_DELAY
     delay(STARTUP_DELAY);
 #endif
 
     Serial.println("Init Web Server");
+    Serial.flush();
     webServer.init();
+    Serial.println("[boot] web server init complete");
+    Serial.flush();
 
     if (! webServer.connectToWifi()) {
+        Serial.println("[boot] wifi unavailable, starting access point");
+        Serial.flush();
         webServer.startAccessPoint();
         webServer.enableOta();
         webServer.startMDNS();
         webServer.startWebServer();
+        Serial.println("[boot] services started in access point mode");
+        Serial.flush();
 
         display.init();
+        Serial.println("[boot] display init complete");
+        Serial.flush();
         display.homeToString("");
+        Serial.println("[boot] display homed");
+        Serial.flush();
 
         if (display.getNumModules() == 8) {
             display.writeString("Wifi Err");
         } else {
             display.writeChar('X');
         }
+        Serial.println("[boot] setup complete in access point mode");
+        Serial.flush();
     } else {
+        Serial.println("[boot] wifi connected");
+        Serial.flush();
         webServer.enableOta();
         webServer.startMDNS();
         webServer.startWebServer();
+        Serial.println("[boot] network services started");
+        Serial.flush();
 
         display.init();
+        Serial.println("[boot] display init complete");
+        Serial.flush();
         splitflapMqtt.setup();
         splitflapMqtt.setDisplay(&display);
         display.setMqtt(&splitflapMqtt);
+        Serial.println("[boot] mqtt setup complete");
+        Serial.flush();
 
         display.homeToString("OK");
         delay(250);
         display.writeString("");
+        Serial.println("[boot] setup complete in wifi mode");
+        Serial.flush();
     }
 }
 
 void loop() {
+    if (splitflapEspNow) {
+        splitflapEspNow->loop();
+    }
     splitflapMqtt.loop();
 
     // check what mode the display is in, this value is updated by the web server
@@ -105,6 +150,7 @@ void loop() {
         case 3: timeMode(); break;
         case 4: break;
         case 5: randomTest(); break;
+        case ESP_NOW_REMOTE_MODE: break;
         default: break;
     }
 
@@ -120,26 +166,52 @@ void loop() {
 void singleInputMode() {
     String userInput = webServer.getInputString();
     if (userInput != webServer.getWrittenString()) {
-        display.writeString(
-            userInput, MAX_RPM, webServer.getCentering(),
-            settings.getInt("scrollDelayMs"),
-            settings.getInt("scrollRepeatCount")
-        );
+        if (isMultiDisplayMasterEnabled()) {
+            getSplitFlapEspNow()->distributeMessage(
+                userInput, webServer.getCentering(),
+                settings.getInt("scrollDelayMs"),
+                settings.getInt("scrollRepeatCount")
+            );
+            if (splitflapMqtt.isConnected()) {
+                splitflapMqtt.publishState(userInput);
+            }
+        } else {
+            display.writeString(
+                userInput, MAX_RPM, webServer.getCentering(),
+                settings.getInt("scrollDelayMs"),
+                settings.getInt("scrollRepeatCount")
+            );
+        }
         webServer.setWrittenString(userInput);
     }
 }
 
 void multiInputMode() {
+    if (webServer.getNumMultiWords() <= 0) {
+        return;
+    }
+
     if (millis() - webServer.getLastSwitchMultiTime() > webServer.getMultiWordDelay()) {
         // get user input, extract correct word from index using webserver counter, and display
         String userInput = webServer.getMultiInputString();
         String currWord = extractFromCSV(userInput, webServer.getMultiWordCurrentIndex());
         if (currWord != webServer.getWrittenString()) {
-            display.writeString(
-                currWord, MAX_RPM, webServer.getCentering(),
-                settings.getInt("scrollDelayMs"),
-                settings.getInt("scrollRepeatCount")
-            );
+            if (isMultiDisplayMasterEnabled()) {
+                getSplitFlapEspNow()->distributeMessage(
+                    currWord, webServer.getCentering(),
+                    settings.getInt("scrollDelayMs"),
+                    settings.getInt("scrollRepeatCount")
+                );
+                if (splitflapMqtt.isConnected()) {
+                    splitflapMqtt.publishState(currWord);
+                }
+            } else {
+                display.writeString(
+                    currWord, MAX_RPM, webServer.getCentering(),
+                    settings.getInt("scrollDelayMs"),
+                    settings.getInt("scrollRepeatCount")
+                );
+            }
             webServer.setWrittenString(currWord);
         }
         webServer.setLastSwitchMultiTime(millis());

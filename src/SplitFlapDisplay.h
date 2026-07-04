@@ -22,7 +22,8 @@ class SplitFlapDisplay {
     void writeString(
         String inputString, float speed = MAX_RPM, bool centering = true,
         unsigned long scrollDelayMs = DEFAULT_SCROLL_DELAY_MS,
-        int scrollRepeatCount = DEFAULT_SCROLL_REPEAT_COUNT
+        int scrollRepeatCount = DEFAULT_SCROLL_REPEAT_COUNT,
+        bool publishState = true
     ); // Move all modules at once to show a specific string. If longer than
        // numModules, splits on word boundaries and shows chunks sequentially,
        // repeating the full chunk sequence scrollRepeatCount times total.

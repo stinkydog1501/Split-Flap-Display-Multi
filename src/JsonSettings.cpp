@@ -3,31 +3,85 @@
 #include <ArduinoJson.h>
 #include <sstream>
 
-String JsonSettings::getString(const char *key) {
+String JsonSettings::storageKey(const char *key) {
+    String storage = String(key);
+    if (storage.length() <= 15) {
+        return storage;
+    }
+
+    unsigned int hash = 5381;
+    for (size_t i = 0; i < storage.length(); ++i) {
+        hash = ((hash << 5) + hash) + storage[i];
+    }
+
+    String suffix = String(hash & 0xFFFF, HEX);
+    suffix.toUpperCase();
+    while (suffix.length() < 4) {
+        suffix = String("0") + suffix;
+    }
+
+    return storage.substring(0, 11) + suffix;
+}
+
+String JsonSettings::getPrefString(const char *key, const String &def) {
+    String storeKey = storageKey(key);
     preferences.begin(name, true);
-    String value = preferences.getString(key, this->find(key).strDefault);
+    String value = preferences.isKey(storeKey.c_str()) ? preferences.getString(storeKey.c_str(), def) : def;
     preferences.end();
     return value;
+}
+
+int JsonSettings::getPrefInt(const char *key, int def) {
+    String storeKey = storageKey(key);
+    preferences.begin(name, true);
+    int value = preferences.getInt(storeKey.c_str(), def);
+    preferences.end();
+    return value;
+}
+
+float JsonSettings::getPrefFloat(const char *key, float def) {
+    String storeKey = storageKey(key);
+    preferences.begin(name, true);
+    float value = preferences.getFloat(storeKey.c_str(), def);
+    preferences.end();
+    return value;
+}
+
+void JsonSettings::putPrefString(const char *key, const String &value) {
+    String storeKey = storageKey(key);
+    preferences.begin(name, false);
+    preferences.putString(storeKey.c_str(), value);
+    preferences.end();
+}
+
+void JsonSettings::putPrefInt(const char *key, int value) {
+    String storeKey = storageKey(key);
+    preferences.begin(name, false);
+    preferences.putInt(storeKey.c_str(), value);
+    preferences.end();
+}
+
+void JsonSettings::putPrefFloat(const char *key, float value) {
+    String storeKey = storageKey(key);
+    preferences.begin(name, false);
+    preferences.putFloat(storeKey.c_str(), value);
+    preferences.end();
+}
+
+String JsonSettings::getString(const char *key) {
+    return getPrefString(key, this->find(key).strDefault);
 }
 
 int JsonSettings::getInt(const char *key) {
-    preferences.begin(name, true);
-    int value = preferences.getInt(key, this->find(key).intDefault);
-    preferences.end();
-    return value;
+    return getPrefInt(key, this->find(key).intDefault);
 }
 
 float JsonSettings::getFloat(const char *key) {
-    preferences.begin(name, true);
-    float value = preferences.getFloat(key, this->find(key).floatDefault);
-    preferences.end();
-    return value;
+    return getPrefFloat(key, this->find(key).floatDefault);
 }
 
 std::vector<int> JsonSettings::getIntVector(const char *key) {
-    preferences.begin(name, true);
-    String value = preferences.getString(key, this->find(key).strDefault);
-    preferences.end();
+    String value = getPrefString(key, this->find(key).strDefault);
 
     std::vector<int> intVector;
     std::istringstream stream(value.c_str());
@@ -45,21 +99,15 @@ std::vector<int> JsonSettings::getIntVector(const char *key) {
 }
 
 void JsonSettings::putString(const char *key, String value) {
-    preferences.begin(name, false);
-    preferences.putString(key, value);
-    preferences.end();
+    putPrefString(key, value);
 }
 
 void JsonSettings::putInt(const char *key, int value) {
-    preferences.begin(name, false);
-    preferences.putInt(key, value);
-    preferences.end();
+    putPrefInt(key, value);
 }
 
 void JsonSettings::putFloat(const char *key, float value) {
-    preferences.begin(name, false);
-    preferences.putFloat(key, value);
-    preferences.end();
+    putPrefFloat(key, value);
 }
 
 void JsonSettings::putIntVector(const char *key, std::vector<int> value) {
@@ -76,8 +124,6 @@ void JsonSettings::putIntVector(const char *key, std::vector<int> value) {
 JsonDocument JsonSettings::toJson() {
     JsonDocument settings;
 
-    preferences.begin(name, true);
-
     for (const auto &pair : map) {
         const String &key = pair.first;
         const JsonSetting &setting = pair.second;
@@ -85,25 +131,28 @@ JsonDocument JsonSettings::toJson() {
         switch (setting.type) {
             case JsonSettingType::JST_STR:
             case JsonSettingType::JST_INT_VECTOR:
-                settings[key] = preferences.getString(key.c_str(), setting.strDefault);
+                settings[key] = getPrefString(key.c_str(), setting.strDefault);
                 break;
-            case JsonSettingType::JST_INT: settings[key] = preferences.getInt(key.c_str(), setting.intDefault); break;
+            case JsonSettingType::JST_INT:
+                settings[key] = getPrefInt(key.c_str(), setting.intDefault);
+                break;
             case JsonSettingType::JST_FLOAT:
-                settings[key] = preferences.getFloat(key.c_str(), setting.floatDefault);
+                settings[key] = getPrefFloat(key.c_str(), setting.floatDefault);
                 break;
         }
     }
 
-    preferences.end();
     return settings;
 }
 
 bool JsonSettings::fromJson(JsonDocument settings) {
-    preferences.begin(name, false);
-
     for (JsonPair kv : settings.as<JsonObject>()) {
         const char *key = kv.key().c_str();
-        JsonSetting setting = this->find(key);
+        auto it = this->map.find(key);
+        if (it == this->map.end()) {
+            continue;
+        }
+        JsonSetting setting = it->second;
 
         if (! setting.validate(kv.value().as<String>())) {
             lastValidationError = setting.getLastValidationError();
@@ -113,13 +162,17 @@ bool JsonSettings::fromJson(JsonDocument settings) {
 
         switch (setting.type) {
             case JsonSettingType::JST_INT_VECTOR:
-            case JsonSettingType::JST_STR: preferences.putString(key, kv.value().as<String>()); break;
-            case JsonSettingType::JST_INT: preferences.putInt(key, kv.value().as<int>()); break;
-            case JsonSettingType::JST_FLOAT: preferences.putFloat(key, kv.value().as<float>()); break;
+            case JsonSettingType::JST_STR:
+                putPrefString(key, kv.value().as<String>());
+                break;
+            case JsonSettingType::JST_INT:
+                putPrefInt(key, kv.value().as<int>());
+                break;
+            case JsonSettingType::JST_FLOAT:
+                putPrefFloat(key, kv.value().as<float>());
+                break;
         }
     }
-
-    preferences.end();
 
     return true;
 }

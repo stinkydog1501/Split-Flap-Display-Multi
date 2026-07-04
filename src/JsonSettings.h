@@ -26,9 +26,16 @@ class JsonSettings {
     bool reset();
 
     String getLastValidationError() { return lastValidationError; }
+    static String storageKey(const char *key);
     String getLastValidationKey() { return lastValidationKey; }
-
   private:
+    String getPrefString(const char *key, const String &def);
+    int getPrefInt(const char *key, int def);
+    float getPrefFloat(const char *key, float def);
+    void putPrefString(const char *key, const String &value);
+    void putPrefInt(const char *key, int value);
+    void putPrefFloat(const char *key, float value);
+
     const char *name;
     std::map<String, JsonSetting> map;
 

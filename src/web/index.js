@@ -21,7 +21,11 @@ document.addEventListener("alpine:init", () => {
             mode: 2,
             dateFormat: "ddd dd/MM",
             timeFormat: "HH:mm",
+            masterGroupCount: 1,
+            masterGroupModuleCounts: "8,8,8,8,8,8",
+            masterGroupMacs: ",,,,,",
         },
+        localMac: "",
         errors: {},
         timezones: {},
 
@@ -64,6 +68,57 @@ document.addEventListener("alpine:init", () => {
             this.settings.moduleOffsets = arr.join(",");
         },
 
+        get groupModuleArray() {
+            const arr =
+                this.settings.masterGroupModuleCounts
+                    ?.split(",")
+                    .map((s) => s.trim()) || [];
+            while (arr.length < 6) {
+                arr.push("8");
+            }
+            arr[0] = String(this.settings.moduleCount || arr[0] || 8);
+            return arr.slice(0, 6);
+        },
+        setGroupModuleCount(index, value) {
+            const arr = this.groupModuleArray;
+            arr[index] = value;
+            if (index === 0) {
+                this.settings.moduleCount = value;
+            }
+            this.settings.masterGroupModuleCounts = arr.join(",");
+        },
+
+        get groupMacArray() {
+            const arr =
+                this.settings.masterGroupMacs
+                    ?.split(",")
+                    .map((s) => s.trim()) || [];
+            while (arr.length < 6) {
+                arr.push("");
+            }
+            return arr.slice(0, 6);
+        },
+        setGroupMac(index, value) {
+            const arr = this.groupMacArray;
+            arr[index] = value;
+            this.settings.masterGroupMacs = arr.join(",");
+        },
+
+        normalizeMasterGroups() {
+            const groupCount = Number(this.settings.masterGroupCount || 1);
+            this.settings.masterGroupCount = Math.min(
+                Math.max(groupCount, 1),
+                6,
+            );
+
+            const counts = this.groupModuleArray;
+            counts[0] = String(this.settings.moduleCount || counts[0] || 8);
+            this.settings.masterGroupModuleCounts = counts.join(",");
+
+            const macs = this.groupMacArray;
+            this.settings.masterGroupMacs = macs.join(",");
+        },
+
         init() {
             this.loadSettings();
             if (type === "Settings") {
@@ -75,7 +130,10 @@ document.addEventListener("alpine:init", () => {
             fetch("/settings")
                 .then((res) => res.json())
                 .then((data) => {
-                    Object.assign(this.settings, data);
+                    const settingsData = data.settings || {};
+                    Object.assign(this.settings, settingsData);
+                    this.localMac = data.localMac || "";
+                    this.normalizeMasterGroups();
                 })
                 .catch(() =>
                     this.showDialog("Failed to load settings", "error", true),
@@ -102,7 +160,7 @@ document.addEventListener("alpine:init", () => {
         },
 
         updateDisplay() {
-            if (this.settings.mode === 6) {
+            if (this.settings.mode === 0) {
                 if (this.delay < 1) {
                     return this.showDialog(
                         "Delay must be at least 1 second.",
@@ -131,7 +189,7 @@ document.addEventListener("alpine:init", () => {
                 body: JSON.stringify({ mode: this.settings.mode }),
             });
 
-            if (this.settings.mode === 6) {
+            if (this.settings.mode === 0) {
                 fetch("/text", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -166,6 +224,7 @@ document.addEventListener("alpine:init", () => {
         save() {
             this.saving = true;
             this.errors = {};
+            this.normalizeMasterGroups();
 
             fetch("/settings", {
                 method: "POST",

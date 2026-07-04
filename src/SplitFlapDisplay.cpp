@@ -162,12 +162,12 @@ void SplitFlapDisplay::writeChar(char inputChar, float speed) {
 
 void SplitFlapDisplay::writeString(
     String inputString, float speed, bool centering, unsigned long scrollDelayMs,
-    int scrollRepeatCount
+    int scrollRepeatCount, bool publishState
 ) {
     // Short path: fits in one frame — behave exactly as before.
     if (inputString.length() <= numModules) {
         displayChunk(inputString, speed, centering);
-        if (mqtt && mqtt->isConnected()) {
+        if (publishState && mqtt && mqtt->isConnected()) {
             mqtt->publishState(inputString);
         }
         return;
@@ -202,7 +202,7 @@ void SplitFlapDisplay::writeString(
         }
     }
 
-    if (mqtt && mqtt->isConnected()) {
+    if (publishState && mqtt && mqtt->isConnected()) {
         // Publish the original input so consumers see the full message, not
         // just the final chunk on the display.
         mqtt->publishState(inputString);
