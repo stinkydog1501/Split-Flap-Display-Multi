@@ -108,7 +108,7 @@ Group 1 displays its segment locally on the master controller. The master sends 
 
 1. Flash the firmware and filesystem to every group controller.
 1. Configure Wi-Fi on every controller. Using the same Wi-Fi network is recommended so the controllers share a radio channel and each web page remains reachable.
-1. Open the serial monitor for each remote controller and note the MAC address printed at startup:
+1. Open the serial monitor for each remote controller and note the MAC address printed at startup (also shown on the Settings page):
 
     - `[esp-now] initialized on AA:BB:CC:DD:EE:FF`
 
