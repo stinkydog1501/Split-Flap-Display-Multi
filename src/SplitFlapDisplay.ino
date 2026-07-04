@@ -99,6 +99,12 @@ void setup() {
         display.init();
         Serial.println("[boot] display init complete");
         Serial.flush();
+        if (getSplitFlapEspNow()->init()) {
+            Serial.println("[boot] esp-now initialized successfully");
+        } else {
+            Serial.println("[boot] esp-now initialization failed");
+        }
+        Serial.flush();
         display.homeToString("");
         Serial.println("[boot] display homed");
         Serial.flush();
@@ -122,8 +128,15 @@ void setup() {
         display.init();
         Serial.println("[boot] display init complete");
         Serial.flush();
+        if (getSplitFlapEspNow()->init()) {
+            Serial.println("[boot] esp-now initialized successfully");
+        } else {
+            Serial.println("[boot] esp-now initialization failed");
+        }
+        Serial.flush();
         splitflapMqtt.setup();
         splitflapMqtt.setDisplay(&display);
+        splitflapMqtt.setEspNow(getSplitFlapEspNow());
         display.setMqtt(&splitflapMqtt);
         Serial.println("[boot] mqtt setup complete");
         Serial.flush();

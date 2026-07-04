@@ -2,6 +2,7 @@
 
 #include "JsonSettings.h"
 #include "SplitFlapDisplay.h"
+#include "SplitFlapEspNow.h"
 
 #include <PubSubClient.h>
 #include <WiFiClient.h>
@@ -14,6 +15,7 @@ class SplitFlapMqtt {
     void loop();                                               // needed for PubSubClient3
     void publishState(const String &message);
     void setDisplay(SplitFlapDisplay *display);
+    void setEspNow(SplitFlapEspNow *espNow);
     bool isConnected();
 
   private:
@@ -22,6 +24,7 @@ class SplitFlapMqtt {
 
     JsonSettings &settings;
     SplitFlapDisplay *display;
+    SplitFlapEspNow *espNow = nullptr;
 
     void connectToMqtt();
 

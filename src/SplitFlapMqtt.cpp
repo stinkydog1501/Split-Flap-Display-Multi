@@ -27,7 +27,19 @@ void SplitFlapMqtt::setup() {
         Serial.printf("[MQTT] Message received: %s\n", message.c_str());
         if (display) {
             float maxVel = settings.getFloat("maxVel");
-            display->writeString(message, maxVel, false);
+            if (settings.getInt("masterGroupCount") > 1 && espNow) {
+                int groupCount = settings.getInt("masterGroupCount");
+                Serial.printf("[MQTT] masterGroupCount=%d, routing message through ESP-NOW distribution\n", groupCount);
+                espNow->distributeMessage(
+                    message,
+                    false,
+                    settings.getInt("scrollDelayMs"),
+                    settings.getInt("scrollRepeatCount")
+                );
+            } else {
+                Serial.println("[MQTT] Displaying message locally on Group 1");
+                display->writeString(message, maxVel, false);
+            }
         }
     });
 
@@ -94,6 +106,10 @@ void SplitFlapMqtt::connectToMqtt() {
 
 void SplitFlapMqtt::setDisplay(SplitFlapDisplay *d) {
     display = d;
+}
+
+void SplitFlapMqtt::setEspNow(SplitFlapEspNow *e) {
+    espNow = e;
 }
 
 void SplitFlapMqtt::publishState(const String &message) {

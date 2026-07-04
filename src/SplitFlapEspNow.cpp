@@ -208,18 +208,24 @@ void SplitFlapEspNow::distributeFrame(const String &frame) {
 
     int localModuleCount = getGroupModuleCount(0);
     String localText = sliceMessage(frame, offset, localModuleCount);
+
+    // Send peer chunks first so all remote groups get their text before the
+    // local group begins displaying.
+    for (int groupIndex = 1; groupIndex < groupCount; groupIndex++) {
+        int moduleCount = getGroupModuleCount(groupIndex);
+        String segment = sliceMessage(frame, offset + localModuleCount, moduleCount);
+        Serial.printf("[esp-now] send to group %d text='%s' modules=%d offset=%d\n",
+            groupIndex + 1, segment.c_str(), moduleCount, offset + localModuleCount);
+        sendToPeer(groupIndex, segment, moduleCount);
+        offset += moduleCount;
+    }
+
+    Serial.printf("[esp-now] local group 1 display text='%s' modules=%d\n",
+        localText.c_str(), localModuleCount);
     display.writeString(
         localText, MAX_RPM, false, DEFAULT_SCROLL_DELAY_MS,
         DEFAULT_SCROLL_REPEAT_COUNT, false
     );
-    offset += localModuleCount;
-
-    for (int groupIndex = 1; groupIndex < groupCount; groupIndex++) {
-        int moduleCount = getGroupModuleCount(groupIndex);
-        String segment = sliceMessage(frame, offset, moduleCount);
-        sendToPeer(groupIndex, segment, moduleCount);
-        offset += moduleCount;
-    }
 }
 
 void SplitFlapEspNow::splitIntoChunks(
@@ -346,6 +352,10 @@ bool SplitFlapEspNow::sendToPeer(int groupIndex, const String &text, int moduleC
         peer.encrypt = false;
         peer.ifidx = (WiFi.getMode() == WIFI_AP) ? WIFI_IF_AP : WIFI_IF_STA;
 
+        Serial.printf("[esp-now] adding peer group %d mac %02X:%02X:%02X:%02X:%02X:%02X ifidx=%d\n",
+            groupIndex + 1,
+            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], peer.ifidx);
+
         esp_err_t addResult = esp_now_add_peer(&peer);
         if (addResult != ESP_OK) {
             Serial.println("[esp-now] failed to add peer for group " + String(groupIndex + 1));
@@ -365,6 +375,9 @@ bool SplitFlapEspNow::sendToPeer(int groupIndex, const String &text, int moduleC
     }
     packet.text[packet.moduleCount] = '\0';
 
+    Serial.printf("[esp-now] send group %d len=%d text='%s'\n",
+        groupIndex + 1, sizeof(packet), packet.text);
+
     esp_err_t result = esp_now_send(mac, (const uint8_t *) &packet, sizeof(packet));
     if (result != ESP_OK) {
         Serial.println("[esp-now] send failed for group " + String(groupIndex + 1));
@@ -376,11 +389,14 @@ bool SplitFlapEspNow::sendToPeer(int groupIndex, const String &text, int moduleC
 
 void SplitFlapEspNow::queueReceived(const uint8_t *data, int len) {
     if (len != sizeof(SplitFlapEspNowMessage)) {
+        Serial.printf("[esp-now] received invalid len=%d\n", len);
         return;
     }
 
     memcpy(&pendingPacket, data, sizeof(pendingPacket));
     pendingMessage = true;
+    Serial.printf("[esp-now] queued received group=%d modules=%d text='%s'\n",
+        pendingPacket.groupIndex + 1, pendingPacket.moduleCount, pendingPacket.text);
 }
 
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
