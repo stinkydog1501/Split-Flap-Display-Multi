@@ -68,6 +68,48 @@ document.addEventListener("alpine:init", () => {
             this.settings.moduleOffsets = arr.join(",");
         },
 
+        get charOffsetMatrix() {
+            if (!this.settings.charOffsets) return [];
+            return this.settings.charOffsets
+                .split(";")
+                .filter((r) => r.length > 0)
+                .map((r) => r.split(",").map((v) => parseInt(v) || 0));
+        },
+        setCharOffset(modIndex, charIndex, value) {
+            const matrix = this.charOffsetMatrix;
+            while (matrix.length <= modIndex) matrix.push([]);
+            while (matrix[modIndex].length <= charIndex)
+                matrix[modIndex].push(0);
+            matrix[modIndex][charIndex] = parseInt(value) || 0;
+            this.settings.charOffsets = matrix
+                .map((r) => r.join(","))
+                .join(";");
+        },
+        resetCharOffsets(modIndex) {
+            const matrix = this.charOffsetMatrix;
+            const numChars = this.settings.charset || 48;
+            while (matrix.length <= modIndex) matrix.push([]);
+            matrix[modIndex] = Array(numChars).fill(0);
+            this.settings.charOffsets = matrix
+                .map((r) => r.join(","))
+                .join(";");
+        },
+        copyCharOffsets(fromIndex, toIndex) {
+            const matrix = this.charOffsetMatrix;
+            if (fromIndex >= matrix.length) return;
+            while (matrix.length <= toIndex) matrix.push([]);
+            matrix[toIndex] = [...matrix[fromIndex]];
+            this.settings.charOffsets = matrix
+                .map((r) => r.join(","))
+                .join(";");
+        },
+
+        get charsetChars() {
+            const standard = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            const extended = standard + "'?:!.-/$@#%";
+            return (this.settings.charset || 48) === 48 ? extended : standard;
+        },
+
         get groupModuleArray() {
             const arr =
                 this.settings.masterGroupModuleCounts

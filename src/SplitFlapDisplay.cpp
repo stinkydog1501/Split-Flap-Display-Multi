@@ -7,7 +7,7 @@
 SplitFlapDisplay::SplitFlapDisplay(JsonSettings &settings) : settings(settings) {}
 
 void SplitFlapDisplay::init() {
-    numModules = settings.getInt("moduleCount");
+    numModules = constrain(settings.getInt("moduleCount"), 1, MAX_MODULES);
     stepsPerRot = settings.getInt("stepsPerRot");
     displayOffset = settings.getInt("displayOffset");
     magnetPosition = settings.getInt("magnetPosition");
@@ -24,6 +24,14 @@ void SplitFlapDisplay::init() {
         moduleOffsets[i] = settingOffsets[i];
     }
 
+    std::vector<std::vector<int>> settingCharOffsets = settings.getIntMatrix("charOffsets");
+    for (int i = 0; i < numModules; i++) {
+        for (int j = 0; j < 48; j++) {
+            charOffsets[i][j] = (i < (int)settingCharOffsets.size() && j < (int)settingCharOffsets[i].size())
+                ? settingCharOffsets[i][j] : 0;
+        }
+    }
+
     Serial.print("Module Offsets: ");
     for (int i = 0; i < numModules; i++) {
         Serial.print(moduleOffsets[i]);
@@ -33,7 +41,7 @@ void SplitFlapDisplay::init() {
 
     for (uint8_t i = 0; i < numModules; i++) {
         modules[i] = SplitFlapModule(
-            moduleAddresses[i], stepsPerRot, moduleOffsets[i] + displayOffset, magnetPosition, charSetSize
+            moduleAddresses[i], stepsPerRot, moduleOffsets[i] + displayOffset, magnetPosition, charSetSize, charOffsets[i]
         );
     }
 
@@ -44,6 +52,30 @@ void SplitFlapDisplay::init() {
     Wire.setClock(400000);
 
     for (uint8_t i = 0; i < numModules; i++) {
+        modules[i].init();
+    }
+}
+
+void SplitFlapDisplay::reloadOffsets() {
+    displayOffset = settings.getInt("displayOffset");
+    
+    std::vector<int> settingOffsets = settings.getIntVector("moduleOffsets");
+    for (int i = 0; i < numModules; i++) {
+        moduleOffsets[i] = settingOffsets[i];
+    }
+
+    std::vector<std::vector<int>> settingCharOffsets = settings.getIntMatrix("charOffsets");
+    for (int i = 0; i < numModules; i++) {
+        for (int j = 0; j < 48; j++) {
+            charOffsets[i][j] = (i < (int)settingCharOffsets.size() && j < (int)settingCharOffsets[i].size())
+                ? settingCharOffsets[i][j] : 0;
+        }
+    }
+
+    for (uint8_t i = 0; i < numModules; i++) {
+        modules[i] = SplitFlapModule(
+            moduleAddresses[i], stepsPerRot, moduleOffsets[i] + displayOffset, magnetPosition, charSetSize, charOffsets[i]
+        );
         modules[i].init();
     }
 }

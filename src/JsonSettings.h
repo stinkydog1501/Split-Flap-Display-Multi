@@ -15,11 +15,13 @@ class JsonSettings {
     int getInt(const char *key);
     float getFloat(const char *key);
     std::vector<int> getIntVector(const char *key);
+    std::vector<std::vector<int>> getIntMatrix(const char *key);
 
     void putString(const char *key, String value);
     void putInt(const char *key, int value);
     void putFloat(const char *key, float value);
     void putIntVector(const char *key, std::vector<int> value);
+    void putIntMatrix(const char *key, std::vector<std::vector<int>> value);
 
     JsonDocument toJson();
     bool fromJson(JsonDocument settings);

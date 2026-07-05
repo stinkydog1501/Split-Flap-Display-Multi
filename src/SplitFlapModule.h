@@ -8,7 +8,7 @@ class SplitFlapModule {
     // Constructor declarationS
     SplitFlapModule(); // default constructor required to allocate memory for
     // SplitFlapDisplay class
-    SplitFlapModule(uint8_t I2Caddress, int stepsPerFullRotation, int stepOffset, int magnetPos, int charSetSize);
+    SplitFlapModule(uint8_t I2Caddress, int stepsPerFullRotation, int stepOffset, int magnetPos, int charSetSize, const int charOffsets[] = nullptr);
 
     void init();
 
@@ -44,6 +44,7 @@ class SplitFlapModule {
 
     const char *chars;              // pointer to active character set
     int charPositions[48];          // support up to 48 characters
+    int charOffsets[48];            // per-character step offsets
     int numChars;                   // current number of characters
     int charSetSize;
 

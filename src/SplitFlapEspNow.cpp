@@ -26,6 +26,14 @@ bool SplitFlapEspNow::init() {
     return true;
 }
 
+void SplitFlapEspNow::reinit() {
+    if (initialized) {
+        esp_now_deinit();
+        initialized = false;
+    }
+    init();
+}
+
 void SplitFlapEspNow::loop() {
     if (! initialized || ! pendingMessage) {
         return;

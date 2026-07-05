@@ -14,8 +14,8 @@
 #define WIFI_PASS ""
 #endif
 
-SplitFlapWebServer::SplitFlapWebServer(JsonSettings &settings)
-    : settings(settings), server(80), multiWordDelay(1000), rebootRequired(false), attemptReconnect(false),
+SplitFlapWebServer::SplitFlapWebServer(JsonSettings &settings, SplitFlapDisplay &display)
+    : settings(settings), display(display), server(80), multiWordDelay(1000), rebootRequired(false), attemptReconnect(false),
       multiWordCurrentIndex(0), numMultiWords(0), wifiCheckInterval(1000), connectionMode(0), checkDateInterval(250),
       centering(1) {
     lastSwitchMultiTime = millis();
@@ -44,8 +44,9 @@ void SplitFlapWebServer::setTimezone() {
     }
 
     size_t size = file.size();
-    std::unique_ptr<char[]> buffer(new char[size]);
+    std::unique_ptr<char[]> buffer(new char[size + 1]);
     file.readBytes(buffer.get(), size);
+    buffer[size] = '\0';
     file.close();
 
     JsonDocument timezones;
@@ -298,10 +299,9 @@ void SplitFlapWebServer::endMDNS() {
 
 void SplitFlapWebServer::startMDNS() {
     if (! MDNS.begin(settings.getString("mdns").c_str())) {
-        Serial.println("Error setting up MDNS responder!");
-        while (1) {
-            delay(1000);
-        }
+        Serial.println("Error setting up MDNS responder! Restarting...");
+        delay(1000);
+        ESP.restart();
     }
 
     Serial.println("mDNS: http://" + settings.getString("mdns") + ".local");
@@ -397,12 +397,28 @@ void SplitFlapWebServer::startWebServer() {
             return request->send(400, "application/json", response.as<String>());
         }
 
+        bool offsetsChanged = false;
+        if (json["moduleOffsets"].is<String>() && json["moduleOffsets"].as<String>() != settings.getString("moduleOffsets")) {
+            offsetsChanged = true;
+        }
+        if (json["charOffsets"].is<String>() && json["charOffsets"].as<String>() != settings.getString("charOffsets")) {
+            offsetsChanged = true;
+        }
+        if (json["displayOffset"].is<int>() && json["displayOffset"].as<int>() != settings.getInt("displayOffset")) {
+            offsetsChanged = true;
+        }
+
         if (! settings.fromJson(json)) {
             response["message"] = "Failed to save settings";
             response["type"] = "error";
             response["errors"]["key"] = settings.getLastValidationKey();
             response["errors"]["message"] = settings.getLastValidationError();
             return request->send(400, "application/json", response.as<String>());
+        }
+
+        if (offsetsChanged) {
+            display.reloadOffsets();
+            response["message"] = "Settings saved and offsets applied!";
         }
 
         response["type"] = "success";

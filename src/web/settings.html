@@ -22,6 +22,21 @@
         this.helpTitle = title;
         this.helpContent = content;
         this.showHelp = true;
+    },
+    openCharPanel: null,
+    copyFromModule: 0,
+    toggleCharOffsetPanel(idx) {
+        this.openCharPanel = this.openCharPanel === idx ? null : idx;
+    },
+    getCharOffset(modIdx, charIdx) {
+        const matrix = this.charOffsetMatrix;
+        if (modIdx >= matrix.length || charIdx >= (matrix[modIdx]?.length || 0)) return 0;
+        return matrix[modIdx][charIdx];
+    },
+    allZeroCharOffsets(modIdx) {
+        const matrix = this.charOffsetMatrix;
+        if (modIdx >= matrix.length) return true;
+        return matrix[modIdx].every(v => v === 0);
     }
 })"
         class="flex flex-col items-center justify-center min-h-screen bg-neutral-900 text-gray-100"
@@ -489,7 +504,7 @@
             <div class="grid grid-cols-4 md:grid-cols-8 gap-2 mt-2 w-full">
                 <template
                     x-for="(val, i) in Array.from({ length: settings.moduleCount })"
-                    :key="`addr-${i}-${addressArray[i]}`"
+                    :key="`addr-${i}`"
                 >
                     <input
                         type="number"
@@ -511,7 +526,7 @@
             <div class="grid grid-cols-4 md:grid-cols-8 gap-2 mt-2 w-full">
                 <template
                     x-for="(val, i) in Array.from({ length: settings.moduleCount })"
-                    :key="`off-${i}-${offsetArray[i]}`"
+                    :key="`off-${i}`"
                 >
                     <input
                         type="number"
@@ -526,6 +541,145 @@
                 class="w-full p-3 mt-2 text-sm text-white bg-red-700 rounded-md"
                 x-cloak
                 x-show="errors.key === 'moduleOffsets'"
+                x-text="errors.message"
+            ></div>
+
+            <h2
+                class="text-xl font-semibold text-left w-full border-b border-gray-600 pb-2 mt-10 mb-2"
+            >
+                Character Offsets
+            </h2>
+            <p class="text-sm text-gray-400 text-left w-full mb-4">
+                Fine-tune each character position per module. Use ▲/▼ to adjust
+                by 1 step.
+            </p>
+
+            <div class="w-full space-y-2">
+                <template
+                    x-for="(val, modIdx) in Array.from({ length: settings.moduleCount })"
+                    :key="`charoff-hdr-${modIdx}`"
+                >
+                    <div
+                        class="border border-gray-600 rounded-md overflow-hidden"
+                    >
+                        <button
+                            type="button"
+                            class="w-full flex items-center justify-between p-3 bg-neutral-700 hover:bg-neutral-600 transition-colors text-left"
+                            @click="toggleCharOffsetPanel(modIdx)"
+                        >
+                            <span class="flex items-center gap-2">
+                                <svg
+                                    class="w-4 h-4 transition-transform"
+                                    :class="{ 'rotate-90': openCharPanel === modIdx }"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M9 5l7 7-7 7"
+                                    />
+                                </svg>
+                                <span
+                                    class="font-medium"
+                                    x-text="`Module ${modIdx + 1}`"
+                                ></span>
+                            </span>
+                            <span
+                                class="text-xs text-gray-400"
+                                x-show="!allZeroCharOffsets(modIdx)"
+                            >
+                                modified
+                            </span>
+                        </button>
+
+                        <div
+                            x-cloak
+                            x-show="openCharPanel === modIdx"
+                            class="p-3 bg-neutral-800"
+                        >
+                            <div class="flex flex-wrap items-center gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    class="px-3 py-1 text-sm bg-neutral-600 hover:bg-neutral-500 rounded transition-colors"
+                                    @click="resetCharOffsets(modIdx)"
+                                >
+                                    Reset
+                                </button>
+                                <span class="text-sm text-gray-400"
+                                    >Copy from:</span
+                                >
+                                <select
+                                    class="p-1 text-sm border border-gray-600 rounded bg-neutral-700 text-gray-100"
+                                    x-model.number="copyFromModule"
+                                >
+                                    <template
+                                        x-for="(v, ci) in Array.from({ length: settings.moduleCount })"
+                                        :key="`copyopt-${modIdx}-${ci}`"
+                                    >
+                                        <option
+                                            :value="ci"
+                                            :disabled="ci === modIdx"
+                                            x-text="`Module ${ci + 1}`"
+                                        ></option>
+                                    </template>
+                                </select>
+                                <button
+                                    type="button"
+                                    class="px-3 py-1 text-sm bg-neutral-600 hover:bg-neutral-500 rounded transition-colors"
+                                    @click="copyCharOffsets(copyFromModule, modIdx)"
+                                    :disabled="copyFromModule === modIdx"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+
+                            <div
+                                class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1"
+                            >
+                                <template
+                                    x-for="(ch, charIdx) in charsetChars"
+                                    :key="`co-${modIdx}-${charIdx}`"
+                                >
+                                    <div class="flex flex-col items-center">
+                                        <span
+                                            class="text-xs font-mono text-gray-400 mb-0.5"
+                                            x-text="ch === ' ' ? '⎵' : ch"
+                                        ></span>
+                                        <button
+                                            type="button"
+                                            class="w-full text-xs leading-none text-gray-400 hover:text-amber-500 py-0.5"
+                                            @click="setCharOffset(modIdx, charIdx, getCharOffset(modIdx, charIdx) + 1)"
+                                        >
+                                            ▲
+                                        </button>
+                                        <input
+                                            type="number"
+                                            class="no-buttons w-12 p-1 text-xs border border-gray-600 rounded text-center bg-neutral-700 text-gray-100"
+                                            :value="getCharOffset(modIdx, charIdx)"
+                                            @input="setCharOffset(modIdx, charIdx, $event.target.value)"
+                                        />
+                                        <button
+                                            type="button"
+                                            class="w-full text-xs leading-none text-gray-400 hover:text-amber-500 py-0.5"
+                                            @click="setCharOffset(modIdx, charIdx, getCharOffset(modIdx, charIdx) - 1)"
+                                        >
+                                            ▼
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div
+                class="w-full p-3 mt-2 text-sm text-white bg-red-700 rounded-md"
+                x-cloak
+                x-show="errors.key === 'charOffsets'"
                 x-text="errors.message"
             ></div>
 

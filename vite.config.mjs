@@ -18,6 +18,12 @@ export default defineConfig({
             },
         },
     },
+    test: {
+        environment: "jsdom",
+        globals: true,
+        root: ".",
+        include: ["src/web/**/*.test.js"],
+    },
     plugins: [
         tailwindcss(),
         {

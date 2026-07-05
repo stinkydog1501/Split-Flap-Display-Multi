@@ -118,6 +118,13 @@ void SplitFlapMqtt::publishState(const String &message) {
 }
 
 void SplitFlapMqtt::loop() {
+    if (! mqttClient.connected()) {
+        unsigned long now = millis();
+        if (now - lastAttempt > 5000) {
+            lastAttempt = now;
+            connectToMqtt();
+        }
+    }
     mqttClient.loop();
 }
 

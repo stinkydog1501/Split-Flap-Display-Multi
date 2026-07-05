@@ -98,6 +98,30 @@ std::vector<int> JsonSettings::getIntVector(const char *key) {
     return intVector;
 }
 
+std::vector<std::vector<int>> JsonSettings::getIntMatrix(const char *key) {
+    String value = getPrefString(key, this->find(key).strDefault);
+
+    std::vector<std::vector<int>> matrix;
+    std::istringstream rowStream(value.c_str());
+    std::string rowStr;
+    while (std::getline(rowStream, rowStr, ';')) {
+        std::vector<int> row;
+        std::istringstream colStream(rowStr.c_str());
+        std::string token;
+        while (std::getline(colStream, token, ',')) {
+            try {
+                row.push_back(std::stoi(token));
+            } catch (const std::invalid_argument &) {
+                throw std::runtime_error("Invalid matrix: Non-integer value found");
+            } catch (const std::out_of_range &) {
+                throw std::runtime_error("Invalid matrix: Integer value out of range");
+            }
+        }
+        matrix.push_back(row);
+    }
+    return matrix;
+}
+
 void JsonSettings::putString(const char *key, String value) {
     putPrefString(key, value);
 }
@@ -121,6 +145,20 @@ void JsonSettings::putIntVector(const char *key, std::vector<int> value) {
     putString(key, stream.str().c_str());
 }
 
+void JsonSettings::putIntMatrix(const char *key, std::vector<std::vector<int>> value) {
+    std::ostringstream stream;
+    for (size_t r = 0; r < value.size(); ++r) {
+        if (r > 0) stream << ";";
+        for (size_t c = 0; c < value[r].size(); ++c) {
+            stream << value[r][c];
+            if (c < value[r].size() - 1) {
+                stream << ",";
+            }
+        }
+    }
+    putString(key, stream.str().c_str());
+}
+
 JsonDocument JsonSettings::toJson() {
     JsonDocument settings;
 
@@ -131,6 +169,7 @@ JsonDocument JsonSettings::toJson() {
         switch (setting.type) {
             case JsonSettingType::JST_STR:
             case JsonSettingType::JST_INT_VECTOR:
+            case JsonSettingType::JST_INT_MATRIX:
                 settings[key] = getPrefString(key.c_str(), setting.strDefault);
                 break;
             case JsonSettingType::JST_INT:
@@ -162,6 +201,7 @@ bool JsonSettings::fromJson(JsonDocument settings) {
 
         switch (setting.type) {
             case JsonSettingType::JST_INT_VECTOR:
+            case JsonSettingType::JST_INT_MATRIX:
             case JsonSettingType::JST_STR:
                 putPrefString(key, kv.value().as<String>());
                 break;

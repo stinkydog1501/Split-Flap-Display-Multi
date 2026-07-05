@@ -19,6 +19,7 @@ class SplitFlapDisplay {
     SplitFlapDisplay(JsonSettings &settings);
 
     void init();
+    void reloadOffsets();
     void writeString(
         String inputString, float speed = MAX_RPM, bool centering = true,
         unsigned long scrollDelayMs = DEFAULT_SCROLL_DELAY_MS,
@@ -68,6 +69,7 @@ class SplitFlapDisplay {
     uint8_t moduleAddresses[MAX_MODULES];
     SplitFlapModule modules[MAX_MODULES];
     int moduleOffsets[MAX_MODULES];
+    int charOffsets[MAX_MODULES][48];
     int displayOffset;
 
     float maxVel;       // Max Velocity In RPM

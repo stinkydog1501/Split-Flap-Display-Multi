@@ -19,8 +19,8 @@ Firmware for the modular Split Flap Display created by [Morgan Manly](https://gi
 - Fully configurable and controllable via Web Interface
     - Switch Between Operation Modes, modes include custom input, date mode, and time mode
     - Configure WiFi, Timezone, and hardware settings
+- Per-module and per-character offset tuning for precise flap alignment
 - MQTT Support
-- OTA Firmware / Filesystem updating
 - Scrolling text for messages longer than the display width, with configurable delay between chunks and configurable repeat count
 - Multi-display master mode using ESP-NOW to coordinate up to 6 display groups, with up to 8 modules per group
 
@@ -126,11 +126,24 @@ Group 1 displays its segment locally on the master controller. The master sends 
 
 Remote groups automatically switch into ESP-NOW remote display mode when they receive a message from the master. They do not need their own text entry once registered with the master.
 
-### Using OTA to update the firmware
+## Tuning
 
-On the settings page set an OTA password to enable OTA updatable firmware. Use this same password for your `auth` flag in `platformio.ini`, and then use a device environment with `*_ota` appended (ie `esp32_s3_ota`) to upload a new firmware and/or filesystem.
+The settings page provides two levels of offset adjustment for precise flap alignment:
 
-Note: the default `esp32_c3` environment uses a no-OTA partition layout to fit the current firmware on 4MB C3 boards. OTA updates need two app slots, so they are not supported by that default C3 layout unless the firmware/filesystem size is reduced or a larger-flash board/layout is used.
+### Module Offsets
+
+Each module has a coarse offset that adjusts the home position (magnet detection point). This shifts all characters on that module by the same amount. Use this when an entire module's display is consistently off by a few steps. Changes take effect immediately after saving settings.
+
+### Character Offsets
+
+Each character on each module can be individually tuned. This is useful when specific characters are misaligned while others are correct. In the settings page:
+
+1. Expand the module you want to tune
+2. Use the ▲/▼ arrows or enter values directly to adjust each character's position by individual motor steps
+3. Use **Reset** to zero all offsets for a module
+4. Use **Copy from** to duplicate another module's offsets
+
+Changes take effect immediately after saving settings—no reboot required. Offsets are stored per-module and persist across reboots.
 
 ## Contributing
 
@@ -156,3 +169,21 @@ Note: the default `esp32_c3` environment uses a no-OTA partition layout to fit t
 
 1. When ready, commit and push your changes to your forked repository.
 1. Open a pull request to this repository.
+
+### Running Tests
+
+The project includes unit tests for the frontend JavaScript logic. Tests use [Vitest](https://vitest.dev/) with jsdom environment.
+
+Run all tests:
+
+```sh
+npm test
+```
+
+Run tests in watch mode (re-runs on file changes):
+
+```sh
+npm run test:watch
+```
+
+Tests cover the Alpine.js component logic including settings management, character offset calculations, and API interactions with mocked fetch calls.

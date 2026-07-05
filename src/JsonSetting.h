@@ -7,7 +7,8 @@ typedef enum {
     JST_STR,
     JST_INT,
     JST_FLOAT,
-    JST_INT_VECTOR
+    JST_INT_VECTOR,
+    JST_INT_MATRIX
 } JsonSettingType;
 
 class JsonSetting {
@@ -21,6 +22,10 @@ class JsonSetting {
         : type(JsonSettingType::JST_INT_VECTOR), intVectorDefault(intVectorDefault) {
         strDefault = intVectorToString(intVectorDefault);
     }
+    JsonSetting(std::vector<std::vector<int>> intMatrixDefault)
+        : type(JsonSettingType::JST_INT_MATRIX), intMatrixDefault(intMatrixDefault) {
+        strDefault = intMatrixToString(intMatrixDefault);
+    }
 
     bool validate(String str);
     String getLastValidationError() { return lastValidationError; }
@@ -32,11 +37,14 @@ class JsonSetting {
     int intDefault;
     float floatDefault;
     std::vector<int> intVectorDefault;
+    std::vector<std::vector<int>> intMatrixDefault;
 
     String intVectorToString(const std::vector<int> &vec);
+    String intMatrixToString(const std::vector<std::vector<int>> &mat);
 
     String lastValidationError;
     bool validateIntVector(String str);
+    bool validateIntMatrix(String str);
 
     friend class JsonSettings;
 };

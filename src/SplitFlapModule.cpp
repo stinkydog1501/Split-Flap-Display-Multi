@@ -22,13 +22,17 @@ SplitFlapModule::SplitFlapModule()
 
 // Constructor implementation
 SplitFlapModule::SplitFlapModule(
-    uint8_t I2Caddress, int stepsPerFullRotation, int stepOffset, int magnetPos, int charsetSize
+    uint8_t I2Caddress, int stepsPerFullRotation, int stepOffset, int magnetPos, int charsetSize, const int offsets[]
 )
     : address(I2Caddress), position(0), stepNumber(0), stepsPerRot(stepsPerFullRotation), charSetSize(charsetSize) {
     magnetPosition = magnetPos + stepOffset;
 
     chars = (charsetSize == 48) ? ExtendedChars : StandardChars;
     numChars = (charsetSize == 48) ? 48 : 37;
+
+    for (int i = 0; i < 48; i++) {
+        charOffsets[i] = (offsets != nullptr) ? offsets[i] : 0;
+    }
 }
 
 void SplitFlapModule::writeIO(uint16_t data) {
@@ -57,7 +61,7 @@ void SplitFlapModule::init() {
     float stepSize = (float) stepsPerRot / (float) numChars;
     float currentPosition = 0;
     for (int i = 0; i < numChars; i++) {
-        charPositions[i] = (int) currentPosition;
+        charPositions[i] = (int) currentPosition + charOffsets[i];
         currentPosition += stepSize;
     }
 

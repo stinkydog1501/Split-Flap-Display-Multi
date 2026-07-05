@@ -24,6 +24,7 @@ class SplitFlapEspNow {
     SplitFlapEspNow(JsonSettings &settings, SplitFlapDisplay &display);
 
     bool init();
+    void reinit();
     void loop();
     bool isMasterEnabled();
     void distributeMessage(

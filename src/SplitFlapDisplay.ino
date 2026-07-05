@@ -40,7 +40,8 @@ JsonSettings settings = JsonSettings("config", {
     {"sclPin", JsonSetting(9)},
     {"stepsPerRot", JsonSetting(2048)},
     {"maxVel", JsonSetting(15.0f)},
-    {"charset", JsonSetting(37)},
+    {"charset", JsonSetting(48)},
+    {"charOffsets", JsonSetting(std::vector<std::vector<int>>(8, std::vector<int>(48, 0)))},
     // Scroll Settings (only applies to messages longer than numModules)
     {"scrollDelayMs", JsonSetting(1500)},
     {"scrollRepeatCount", JsonSetting(2)},
@@ -56,7 +57,7 @@ JsonSettings settings = JsonSettings("config", {
 WiFiClient wifiClient;
 SplitFlapDisplay display(settings);
 SplitFlapEspNow *splitflapEspNow = nullptr;
-SplitFlapWebServer webServer(settings);
+SplitFlapWebServer webServer(settings, display);
 SplitFlapMqtt splitflapMqtt(settings, wifiClient);
 
 bool isMultiDisplayMasterEnabled() {
@@ -301,6 +302,9 @@ void reconnectIfNeeded() {
         }
 
         splitflapMqtt.setup();
+        if (splitflapEspNow) {
+            splitflapEspNow->reinit();
+        }
     }
 }
 

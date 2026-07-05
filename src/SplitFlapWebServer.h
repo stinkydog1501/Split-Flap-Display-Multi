@@ -1,6 +1,7 @@
 #pragma once
 
 #include "JsonSettings.h"
+#include "SplitFlapDisplay.h"
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -13,7 +14,7 @@
 
 class SplitFlapWebServer {
   public:
-    SplitFlapWebServer(JsonSettings &settings);
+    SplitFlapWebServer(JsonSettings &settings, SplitFlapDisplay &display);
     void init();
     void setTimezone();
     void checkRebootRequired();
@@ -66,6 +67,7 @@ class SplitFlapWebServer {
 
   private:
     JsonSettings &settings;
+    SplitFlapDisplay &display;
 
     String decodeURIComponent(String encodedString);
     bool validateMasterSettings(JsonVariant &json, JsonDocument &response);
