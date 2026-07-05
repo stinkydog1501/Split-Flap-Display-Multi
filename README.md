@@ -19,10 +19,10 @@ Firmware for the modular Split Flap Display created by [Morgan Manly](https://gi
 - Fully configurable and controllable via Web Interface
     - Switch Between Operation Modes, modes include custom input, date mode, and time mode
     - Configure WiFi, Timezone, and hardware settings
-- Per-module and per-character offset tuning for precise flap alignment
 - MQTT Support
-- Scrolling text for messages longer than the display width, with configurable delay between chunks and configurable repeat count
 - Multi-display master mode using ESP-NOW to coordinate up to 6 display groups, with up to 8 modules per group
+- Per-module and per-character offset tuning for precise flap alignment
+- Scrolling text for messages longer than the display width, with configurable delay between chunks and configurable repeat count
 
 ## Supported boards
 
