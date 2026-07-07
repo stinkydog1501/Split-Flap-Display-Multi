@@ -94,7 +94,7 @@ void SplitFlapMqtt::connectToMqtt() {
 
             mqttClient.subscribe(topic_command.c_str());
             mqttClient.publish(topic_avail.c_str(), "online", true);
-            mqttClient.publish(topic_state.c_str(), "", true);
+            mqttClient.publish(topic_state.c_str(), lastPublishedState.c_str(), true);
 
             mqttClient.publish(topic_config_text.c_str(), payload_text.c_str(), true);
             mqttClient.publish(topic_config_sensor.c_str(), payload_sensor.c_str(), true);
@@ -114,6 +114,7 @@ void SplitFlapMqtt::setEspNow(SplitFlapEspNow *e) {
 
 void SplitFlapMqtt::publishState(const String &message) {
     Serial.println("[MQTT] Publishing state: " + message);
+    lastPublishedState = message;        // remember for reconnects
     mqttClient.publish(topic_state.c_str(), message.c_str(), true);
 }
 
