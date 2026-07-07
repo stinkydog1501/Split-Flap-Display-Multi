@@ -73,10 +73,8 @@ void SplitFlapDisplay::reloadOffsets() {
     }
 
     for (uint8_t i = 0; i < numModules; i++) {
-        modules[i] = SplitFlapModule(
-            moduleAddresses[i], stepsPerRot, moduleOffsets[i] + displayOffset, magnetPosition, charSetSize, charOffsets[i]
-        );
-        modules[i].init();
+        int newMagnetOffset = magnetPosition + moduleOffsets[i] + displayOffset;
+        modules[i].updateOffsets(charOffsets[i], newMagnetOffset);
     }
 }
 

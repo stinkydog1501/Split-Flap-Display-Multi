@@ -11,6 +11,7 @@ class SplitFlapModule {
     SplitFlapModule(uint8_t I2Caddress, int stepsPerFullRotation, int stepOffset, int magnetPos, int charSetSize, const int charOffsets[] = nullptr);
 
     void init();
+    void updateOffsets(const int newCharOffsets[], int newMagnetOffset);
 
     void step(bool updatePosition = true);                   // step motor
     void stop();                                             // write all motor input pins to low
