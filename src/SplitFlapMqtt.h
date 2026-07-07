@@ -41,4 +41,5 @@ class SplitFlapMqtt {
 
     unsigned long lastAttempt = 0;
     int retryCount = 0;
+    String lastPublishedState;         // mirror of the most recent state publish
 };
