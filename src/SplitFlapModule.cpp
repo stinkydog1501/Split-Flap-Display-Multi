@@ -85,6 +85,21 @@ void SplitFlapModule::init() {
     stop();
 }
 
+void SplitFlapModule::updateOffsets(const int newCharOffsets[], int newMagnetOffset) {
+    magnetPosition = newMagnetOffset;
+
+    for (int i = 0; i < 48; i++) {
+        charOffsets[i] = newCharOffsets[i];
+    }
+
+    float stepSize = (float) stepsPerRot / (float) numChars;
+    float currentPosition = 0;
+    for (int i = 0; i < numChars; i++) {
+        charPositions[i] = (int) currentPosition + charOffsets[i];
+        currentPosition += stepSize;
+    }
+}
+
 int SplitFlapModule::getCharPosition(char inputChar) {
     inputChar = toupper(inputChar);
     for (int i = 0; i < charSetSize; i++) {
